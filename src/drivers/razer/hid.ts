@@ -91,11 +91,24 @@ function isMouseControlInterface(device: HIDDevice): boolean {
 
 /**
  * Older Razer mice carry the configuration channel on a vendor-defined
- * interface instead, and which one varies by hardware revision. Accepting both
- * shapes means the picker can offer either without the driver refusing it.
+ * interface instead, and which one varies by hardware revision.
  */
 function hasVendorCollection(device: HIDDevice): boolean {
   return device.collections.some((collection) => (collection.usagePage ?? 0) >= 0xff00);
+}
+
+/**
+ * The Essential family splits pointer and configuration across separate
+ * interfaces, and the browser grants every interface at once: the pointer
+ * collection arrives beside the configuration channel's keyboard collection
+ * rather than as the only one. The mouse collection is still present, so a
+ * known product carrying it is the mouse itself. If the configuration channel
+ * was not granted, connecting fails loudly and the picker offers another entry.
+ */
+function hasMouseCollection(device: HIDDevice): boolean {
+  return device.collections.some(
+    (collection) => collection.usagePage === 0x01 && collection.usage === 0x02,
+  );
 }
 
 export class RazerHidClient {
@@ -121,7 +134,8 @@ export class RazerHidClient {
     // previously granted device enumerates (auto-reconnect, shared grants).
     if (product.nativeOnly) return false;
     return isMouseControlInterface(device)
-      || (product.vendorControlInterface === true && hasVendorCollection(device));
+      || (product.vendorControlInterface === true
+        && (hasVendorCollection(device) || hasMouseCollection(device)));
   }
 
   private profile(): RazerProduct | undefined {

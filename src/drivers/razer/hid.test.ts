@@ -543,6 +543,32 @@ test("a nativeOnly model is never accepted, whatever the interface shape", () =>
   assert.equal(RazerHidClient.isSupported(vendor), false);
 });
 
+test("the Essential family is accepted when the browser grants the whole device", () => {
+  // The White Edition splits pointer and configuration across separate
+  // interfaces, and its configuration channel rides a keyboard-class
+  // collection rather than a vendor one. Granting the device offers every
+  // interface at once, so the pointer collection arrives beside the keyboard
+  // collections and the single-collection check alone would refuse the mouse.
+  // Arrange
+  const split = {
+    vendorId: 0x1532,
+    productId: 0x0071,
+    collections: [
+      { usagePage: 0x01, usage: 0x02, featureReports: [], children: [] },
+      { usagePage: 0x01, usage: 0x06, featureReports: [], children: [] },
+      { usagePage: 0x01, usage: 0x06, featureReports: [], children: [] },
+    ],
+  } as unknown as HIDDevice;
+  const configOnly = {
+    ...split,
+    collections: [{ usagePage: 0x01, usage: 0x06, featureReports: [], children: [] }],
+  } as unknown as HIDDevice;
+
+  // Act / Assert
+  assert.equal(RazerHidClient.isSupported(split), true);
+  assert.equal(RazerHidClient.isSupported(configOnly), false);
+});
+
 test("the DeathAdder V2 caps DPI at 20000", () => {
   // Arrange
   const { client } = fakeMouse({ tracking: 0, liftOff: 16, landing: 11, asymmetric: false }, { productId: 0x0084 });
